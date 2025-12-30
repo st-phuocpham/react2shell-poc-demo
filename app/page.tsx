@@ -1,65 +1,155 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { FiSend, FiMic } from "react-icons/fi";
+import Head from "next/head";
+import { motion } from "framer-motion";
 
 export default function Home() {
+  const [messages, setMessages] = useState([
+    { sender: "bot", text: "Hello! How can I help you today?" },
+  ]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage = { sender: "user", text: input };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+
+    setIsTyping(true);
+    // Simulate a delay of 1-2 seconds
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000 + 1000));
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ request: input }),
+      });
+      const data = await res.json();
+      const botMessage = { sender: "bot", text: data.response };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <>
+      <Head>
+        <title>Cô Thư Ký</title>
+      </Head>
+      <div className="flex items-center justify-center min-h-screen bg-white font-sans">
+        <div className="w-full max-w-md h-[90vh] bg-[rgb(84,75,204)] rounded-3xl shadow-lg flex flex-col overflow-hidden">
+          <header className="bg-[rgb(84,75,204)] text-white p-4 text-center font-bold">
+            Chat
+          </header>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`flex ${
+                  msg.sender === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`p-3 rounded-lg max-w-xs ${
+                    msg.sender === "user"
+                      ? "bg-white text-[rgb(114,104,216)] shadow-md"
+                      : "bg-[rgb(114,104,216)] text-white"
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              </motion.div>
+            ))}
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex justify-start"
+              >
+                <div className="p-3 rounded-lg max-w-xs bg-[rgb(114,104,216)] text-white">
+                  <div className="flex items-center space-x-2">
+                    <span className="dot bg-white"></span>
+                    <span className="dot bg-white"></span>
+                    <span className="dot bg-white"></span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          <form
+            onSubmit={handleSend}
+            className="bg-gray-100 p-4 flex items-center space-x-3 border-t"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <button type="button" className="text-gray-500">
+              <FiMic size={24} />
+            </button>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 p-3 rounded-full border focus:outline-none focus:ring-2 focus:ring-[rgb(84,75,204)]"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button
+              type="submit"
+              className="bg-[rgb(84,75,204)] text-white p-3 rounded-full"
+            >
+              <FiSend size={20} />
+            </button>
+          </form>
         </div>
-      </main>
-    </div>
+      </div>
+
+      <style jsx>{`
+        .dot {
+          width: 8px;
+          height: 8px;
+          background-color: white; /* Changed from blue to white */
+          border-radius: 50%;
+          animation: blink 1.5s infinite;
+        }
+        .dot:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+        .dot:nth-child(3) {
+          animation-delay: 0.4s;
+        }
+        @keyframes blink {
+          0%,
+          80%,
+          100% {
+            opacity: 0;
+          }
+          40% {
+            opacity: 1;
+          }
+        }
+      `}</style>
+    </>
   );
 }
